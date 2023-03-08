@@ -124,9 +124,28 @@ spike_length_vs_day_after_leaf6 |>
   filter(FLN.BM != "7") |>
   ggplot(aes(day_after_leaf6, spike.length.mm,)) +
   geom_point(aes(group = FLN.BM, color = FLN.BM, shape = FLN.BM), size = 3) + 
+ 
+  geom_smooth(data = . %>% filter(FLN.BM == "NA-7"), 
+              method = "gam", formula = y ~ s(x, k=3), se = FALSE)  +
+  stat_regline_equation(data = . %>% filter(FLN.BM == "NA-7"), 
+                        formula = y ~ s(x, k=3), label.x = -1, label.y = 15)
+  
+  
+  
+   
+  # exponential fitting
+  geom_smooth(data = . %>% filter(FLN.BM == "NA-7"), 
+              method = "nls", formula = y ~ a * exp(r * x), se = FALSE, method.args = list(start = c(a = 1.0767, r = 0.027))) +
+  stat_regline_equation(data = . %>% filter(FLN.BM == "NA-7"), 
+                        method = "nls", formula = y ~ a * exp(r * x), label.x = -1, label.y = 15)
+  
+  
+  
   # geom_smooth(data = spike_length_vs_day_after_leaf6 %>% filter(is.na(FLN.BM)), method = "lm", formula = y ~ poly(x, 3, raw = TRUE)) +
   # # difference between raw vs. orthogonal raw = TRUE or FALSE???????????????????????????
   # stat_regline_equation(data = spike_length_vs_day_after_leaf6 %>% filter(is.na(FLN.BM)), formula = y ~ poly(x, 3, raw = TRUE), label.x = -1, label.y = 15) +
+  
+  # polynomial fitting to the power of 3
   geom_smooth(data = . %>% filter(FLN.BM == "NA-7"), 
               method = "lm", formula = y ~ poly(x, 3, raw = TRUE)) +
   stat_regline_equation(data = . %>% filter(FLN.BM == "NA-7"), 
@@ -136,7 +155,10 @@ spike_length_vs_day_after_leaf6 |>
   scale_x_continuous(breaks = seq(-1, 20, 1)) +
   scale_y_continuous(breaks = seq(0, 17, by = 3)) +
   labs_pubr()
-ggplotly()
+  
+  method = "gam", 
+  
+  
 ggsave("plots/spike_length/spike_length_vs_day_after_leaf6.png", width = 12, height = 8)
 
 spike_length_vs_day_after_leaf6 |> 
