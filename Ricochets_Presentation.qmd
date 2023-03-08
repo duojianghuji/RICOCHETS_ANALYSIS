@@ -1,0 +1,676 @@
+---
+title: "Ricochets_Presentation"
+
+author: "Jiang Duo"
+date: 02-17-2023
+editor: visual
+format:
+  inrae-html:
+    fig-width: 12.5
+    fig-height: 7.7
+    # fig-format: png
+
+execute:
+  cache: false
+  echo: false
+  warning: false
+  message: false
+---
+
+# Project intro
+
+> This is to test effects of recurrent heat stress on wheat ear fertility.
+
+# Experiment 1
+
+> experiment date: 2021-3 - 2021-4
+
+This is to test effects of recurrent heat stress on wheat ear fertility.
+
+## Codes and plots
+
+> ### Growth conditions
+
+-   There are 3 growth cabinets for the manipulation of different temperature treatments (Chamber A, Chamber B1 and Chamber B2): Chamber A is responsible for control and normal growth conditions, B1 and B2 are for priming stress and recurrent stress
+
+-   priming stress period (6 days) in B1 from 14 Mar to 19 Mar
+
+-   daytime saving occured between 2021-04-05 and 2021-04-06
+
+-   par(light intensity) value in chamber A (control) is almost double than chamber B1 and B2
+
+```{r}
+#| label: growth-conditions
+#| results: hide
+
+
+# Libraries
+library(tidyverse)
+library(lubridate)
+library(plantecophys)
+library(plotly)
+library(DataExplorer)
+library(SmartEDA)
+library(patchwork)
+library(gridExtra)
+
+# Import data ----
+
+# meteo_B1_B2 <- c("raw.data/meteo_cabinetB1.csv",
+#                  "raw.data/meteo_cabinetB2.csv")
+# read_delim(meteo_B1_B2, delim = ";", id = "file")
+
+# Data for B1
+meteo_cabinetB1 <-
+  read_delim("raw.data/meteo_cabinetB1.csv", 
+             delim = ";",
+             col_types = cols(
+               date = col_datetime(format = "%d/%m/%Y %H:%M")
+             )
+  )
+
+
+# Data for B2
+meteo_cabinetB2 <-
+  read_delim("raw.data/meteo_cabinetB2.csv", 
+             delim = ";",
+             col_types = cols(
+               date = col_datetime(format = "%d/%m/%Y %H:%M")
+             )
+  )
+
+
+# chamber A data 
+meteo_cabinetA <-
+  read_delim("raw.data/meteo_chambreA.csv",
+             delim = ";",
+             col_types = cols(
+               date = col_datetime(format = "%d/%m/%Y %H:%M")
+             )
+  )
+
+
+meteo_B1 <-  meteo_cabinetB1 |>
+  # select(ends_with("_b1")) |>
+  rename_with(~ str_replace(., "_b1", "")) |> 
+  select(
+    scenario      = "traitements",
+    stress_period = "periode_stress",
+    chamber       = "site",
+    tc_in_plant   = "branchement_thermocouples",
+    datetime      = "date",
+    time_of_day   = "heure_debut_jour",
+    time          = "heure",
+    t_air         = "tair01",
+    tc_01         = "tc01",
+    tc_02         = "tc02",
+    tc_03         = "tc03",
+    tc_04         = "tc04",
+    hr_01         = "hr01",
+    t_plant_mean  = "tc_mean",
+    vpd_air       = "vpd_air",
+    vpd_plant     = "vpd_plant",
+    par           = "par01",
+  ) |> 
+  mutate(
+      # datetime = dmy_hm(date),
+    date     = lubridate::date(datetime),
+    .before = time_of_day
+  ) |> 
+  # select data only when the thermocouple was attached in the plant
+  filter(tc_in_plant == "oui")
+
+
+meteo_B2 <-  meteo_cabinetB2 |>
+  # select(ends_with("_b2")) |>
+  rename_with(~ str_replace(., "_b2", "")) |> 
+  select(
+    scenario      = "traitements",
+    stress_period = "periode_stress",
+    chamber       = "site",
+    tc_in_plant   = "branchement_thermocouples",
+    datetime      = "date",
+    time_of_day   = "heure_debut_jour",
+    time          = "heure",
+    t_air         = "tair01",
+    tc_01         = "tc01",
+    tc_02         = "tc02",
+    tc_03         = "tc03",
+    tc_04         = "tc04",
+    hr_01         = "hr01",
+    t_plant_mean  = "tc_mean",
+    vpd_air       = "vpd_air",
+    vpd_plant     = "vpd_plant",
+    par           = "par01",
+  ) |>
+  mutate(
+    # datetime = dmy_hm(date),
+    date     = lubridate::date(datetime),
+    .before = time_of_day
+  ) |> 
+  # select data only when the thermocouple was attached in the plant
+  filter(tc_in_plant == "oui")
+
+# Combine meteo_B1 and meteo_B2
+
+meteo_B1_B2 <- 
+  bind_rows(meteo_B1, meteo_B2)
+
+
+meteo_A <- meteo_cabinetA |> 
+  select(
+    datetime     = "date",
+    time         = "heure",
+    time_of_day  = "heure_debut_jour",
+    chamber      = "site",
+    co2          = "co2_01_cA",
+    hr_01        = "hr01_cA",
+    hr_02        = "hr02_cA",
+    par_01       = "par01_cA",
+    par_02       = "par02_cA",
+    tair_01      = "tair01_cA",
+    tair_02      = "tair02_cA",
+    tc_01        = "tc01_cA",
+    tc_02        = "tc02_cA",
+    tc_03        = "tc03_cA",
+    tc_04        = "tc04_cA",
+    tc_05        = "tc05_cA",
+    tc_06        = "tc06_cA",
+    hr_mean      = "hr.moy",
+    t_air_mean   = "t.air.moy",
+    t_plant_mean = "tplant.moy",
+    vpd_air      = "vpd.air",
+    # vpd_plant  = "vpd.plant",
+    par          = "par.moy",
+    tc_in_plant  = "branchement_thermocouples"
+  ) |>
+  mutate(
+    vpd_plant   = VPDairToLeaf(vpd_air, t_air_mean, t_plant_mean, Pa = 101),
+    .after      = vpd_air,
+    scenario    = "control",
+    stress_period = "no_stress",
+    date     = lubridate::date(datetime)
+  ) |> 
+  # select data only when the thermocouple was attached in the plant
+  filter(tc_in_plant == "oui")
+
+
+## Final plotting ----
+# This is intended to plot only for meiosis period
+# select variables of each dataframe
+glimpse(meteo_B1_B2)
+meteo_B1 |> 
+  distinct(stress_period)
+
+
+meteo_A_for_merge <- meteo_A |> 
+  select(
+    datetime,
+    date,
+    time,
+    stress_period,
+    t_air   = t_air_mean,
+    t_plant = t_plant_mean,
+    vpd_air,
+    vpd_plant
+  )
+
+meteo_B1_B2_for_merge <- meteo_B1_B2 |> 
+  select(
+    datetime,
+    date,
+    time,
+    stress_period,
+    t_air,
+    t_plant = t_plant_mean,
+    vpd_air,
+    vpd_plant
+  )
+
+# merge datatable A B1 and B2
+meteo_merged_for_plot <- bind_rows(meteo_B1_B2_for_merge, meteo_A_for_merge)
+
+meteo_merged_for_plot |> 
+  distinct(stress_period)
+### Temp plots ----
+
+temp_plots_meiosis <- meteo_merged_for_plot |>
+  # Only plotting the periods during meosis stage
+  # distinct(stress_period)
+  # filter(stress_period != "anthese_36" & stress_period != "anthese_32") |> 
+  filter(!stress_period %in% c("anthese_36", "anthese_32")) |> 
+  # also selection partial period for control treatment
+  filter(!(stress_period == "no_stress" & (datetime <= ymd_hm("2021-03-25 07:30") | datetime >= ymd_hm("2021-03-31 07:00")))) |> 
+  # # to chack how many samples per stress_period
+  # group_by(stress_period) |>
+  # summarise(n = n())
+  
+  # filter out some points for priming stress 
+  #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  
+  # filter specific time points when temp was inferenced due to the entering of people, sampling or measuring plants
+  filter(!(stress_period == "priming_34" & between(datetime, ymd_hm("2021-03-14 09:05"), ymd_hm("2021-03-14 09:50")))) |>
+  filter(!(stress_period == "priming_34" & between(datetime, ymd_hm("2021-03-19 10:50"), ymd_hm("2021-03-19 11:35")))) |>
+
+  # filter out some points for meiose 36 stress
+  filter(!(stress_period == "meiose_36" & between(datetime, ymd_hm("2021-03-25 08:35"),ymd_hm("2021-03-25 09:50")))) |>
+  filter(!(stress_period == "meiose_36" & between(datetime, ymd_hm("2021-03-27 07:50"), ymd_hm("2021-03-27 08:05")))) |>
+  filter(!(stress_period == "meiose_36" & between(datetime, ymd_hm("2021-03-30 07:50"), ymd_hm("2021-03-30 08:05")))) |>
+  # filter specific date for meiose 36 when tplant was obviously abnomal
+  filter(!(stress_period == "meiose_36" & date == ymd("2021-03-28"))) |>
+
+  # filter out some points for meiose 32 stress
+  filter(!(stress_period == "meiose_32" & datetime == ymd_hm("2021-03-27 08:15"))) |>
+  filter(!(stress_period == "meiose_32" & datetime == ymd_hm("2021-03-30 08:00"))) |>
+  
+  #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  # change the time format to datetime format
+  mutate(
+    stress_period = fct_recode(
+      stress_period,
+      "control_24" = "no_stress",
+      "meiosis_32" = "meiose_32",
+      "meiosis_36" = "meiose_36"
+    ),
+    stress_period = fct_relevel(
+      stress_period,
+      levels = c("control_24", "priming_34", "meiosis_32", "meiosis_36")
+    ),
+    dtime = as.POSIXct(time)
+  ) |> 
+  group_by(stress_period, dtime) |> 
+  summarise(across(t_air:t_plant, list(mean = mean, sd = sd), .names = "{.col}.{.fn}")) |> 
+  
+  ggplot(aes(x = dtime)) +
+  # Adding shading to differentiate day and night in a day using ggplot geom_rect
+  # the daytime is between 06:30 to 21:30
+  geom_rect(
+    aes(
+      xmin = ymd_hms("1970-01-01 07:30:00"),
+      xmax = ymd_hms("1970-01-01 22:00:00"),
+      ymin = -Inf,
+      ymax = Inf
+    ),
+    fill = "grey",
+    alpha = 0.01
+  ) +
+  # geom_rect(
+  #   aes(
+  #     xmin = hms::as_hms("07:30:00"),
+  #     xmax = hms::as_hms("22:00:00"),
+  #     ymin = -Inf,
+  #     ymax = Inf
+  #   ),
+  #   fill = "grey",
+  #   alpha = 0.01
+  # ) +
+  geom_line(aes(y = t_air.mean, color = "Tair"), size = 1) +
+  # add standard deviation
+  geom_ribbon(aes(ymin = t_air.mean - t_air.sd , ymax = t_air.mean + t_air.sd), fill = "#fc8d62", alpha = 0.5) +
+  
+  geom_line(aes(y = t_plant.mean, color = "Tplant"), size = 1) +
+  geom_ribbon(aes(ymin = t_plant.mean - t_plant.sd , ymax = t_plant.mean + t_plant.sd), fill = "#66c2a5", alpha = 0.5) +
+  labs(
+    title = "Temperature",
+    x = "Time of the Day",
+    y = "Temperature (°C)"
+  ) +
+  scale_color_manual(values = c("Tair" = "#fc8d62", "Tplant" = "#66c2a5")) +
+  scale_x_datetime(date_breaks = "4 hour", date_labels = "%H:%M") +
+  # scale_x_time(breaks = "6 hour", labels = "%H:%M")) +
+  scale_y_continuous(breaks = seq(10, 40, by = 5)) +
+  facet_wrap( ~ stress_period,
+              ncol = 1,
+              nrow = 4,
+              strip.position = "left") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    element_line(linewidth = 1),
+    text = element_text(size = 12),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(size = 12),
+    legend.position = c(0.1, 0.95),
+    legend.background = element_blank(),
+    legend.text = element_text(size = 12),
+    legend.title = element_blank(),
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold", size = 12),
+    strip.placement = "outside",
+    axis.ticks = element_line(linewidth = 0.5)
+  )
+### VPD plots ---- 
+
+vpd_plots_meiosis <- meteo_merged_for_plot |>
+  # Only plotting the periods during meosis stage
+  # distinct(stress_period)
+  # filter(stress_period != "anthese_36" & stress_period != "anthese_32") |> 
+  filter(!stress_period %in% c("anthese_36", "anthese_32")) |> 
+  # also selection partial period for control treatment
+  filter(!(stress_period == "no_stress" & (datetime <= ymd_hm("2021-03-25 07:30") | datetime >= ymd_hm("2021-03-31 07:00")))) |> 
+  # # to chack how many samples per stress_period
+  # group_by(stress_period) |>
+  # summarise(n = n())
+  
+  # filter out some points for priming stress 
+  #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  
+  # filter specific time points when temp was inferenced due to the entering of people, sampling or measuring plants
+  filter(!(stress_period == "priming_34" & between(datetime, ymd_hm("2021-03-14 09:05"), ymd_hm("2021-03-14 09:50")))) |>
+  filter(!(stress_period == "priming_34" & between(datetime, ymd_hm("2021-03-19 10:50"), ymd_hm("2021-03-19 11:35")))) |>
+
+
+
+  # filter out some points for meiose 36 stress
+  filter(!(stress_period == "meiose_36" & between(datetime, ymd_hm("2021-03-25 08:35"),ymd_hm("2021-03-25 09:50")))) |>
+  filter(!(stress_period == "meiose_36" & between(datetime, ymd_hm("2021-03-27 07:50"), ymd_hm("2021-03-27 08:05")))) |>
+  filter(!(stress_period == "meiose_36" & between(datetime, ymd_hm("2021-03-30 07:50"), ymd_hm("2021-03-30 08:05")))) |>
+  # filter specific date for meiose 36 when tplant was obviously abnomal
+  filter(!(stress_period == "meiose_36" & date == ymd("2021-03-28"))) |>
+
+  # filter out some points for meiose 32 stress
+  filter(!(stress_period == "meiose_32" & datetime == ymd_hm("2021-03-27 08:15"))) |>
+  filter(!(stress_period == "meiose_32" & datetime == ymd_hm("2021-03-30 08:00"))) |>
+  
+  #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  # change the time format to datetime format
+  mutate(
+    stress_period = fct_recode(
+      stress_period,
+      "control_24" = "no_stress",
+      "meiosis_32" = "meiose_32",
+      "meiosis_36" = "meiose_36"
+    ),
+    
+    stress_period = fct_relevel(
+      stress_period,
+      levels = c("control_24", "priming_34", "meiosis_32", "meiosis_36")
+    ),
+    dtime = as.POSIXct(time)
+  ) |> 
+  #calculate the mean, standard deviation
+  group_by(stress_period, dtime) |> 
+  summarise(across(vpd_air:vpd_plant, list(mean = mean, sd = sd), .names = "{.col}.{.fn}")) |> 
+  
+  ggplot(aes(x = dtime)) +
+  # Adding shading to differentiate day and night in a day using ggplot geom_rect
+  # the daytime is between 06:30 to 21:30
+  geom_rect(
+    aes(
+      xmin = ymd_hms("1970-01-01 07:30:00"),
+      xmax = ymd_hms("1970-01-01 22:00:00"),
+      ymin = -Inf,
+      ymax = Inf
+    ),
+    fill = "grey",
+    alpha = 0.01
+  ) +
+  geom_line(aes(y = vpd_air.mean, color = "VPDair"), size = 1) +
+  # add standard deviation
+  geom_ribbon(aes(ymin = vpd_air.mean - vpd_air.sd , ymax = vpd_air.mean + vpd_air.sd), fill = "#fc8d62", alpha = 0.5) +
+  
+  geom_line(aes(y = vpd_plant.mean, color = "VPDplant"), size = 1) +
+  geom_ribbon(aes(ymin = vpd_plant.mean - vpd_plant.sd , ymax = vpd_plant.mean + vpd_plant.sd), fill = "#66c2a5", alpha = 0.5) +
+  labs(
+    title = "VPD",
+    x = "Time of the Day",
+    y = "Vapor Pressure Deficit (kPa)"
+  ) +
+  scale_color_manual(values = c("VPDair" = "#fc8d62", "VPDplant" = "#66c2a5")) +
+  scale_x_datetime(date_breaks = "4 hour", date_labels = "%H:%M") +
+  scale_y_continuous(breaks = seq(0, 2.0, by = 0.4)) +
+  facet_wrap( ~ stress_period,
+              ncol = 1,
+              nrow = 4,
+              strip.position = "left") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    element_line(size = 1),
+    text = element_text(size = 12),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(size = 12),
+    legend.position = c(0.1, 0.95),
+    legend.background = element_blank(),
+    legend.text = element_text(size = 12),
+    legend.title = element_blank(),
+    strip.background = element_blank(),
+    strip.text = element_blank(),
+    strip.placement = "outside",
+    axis.ticks = element_line(linewidth = 0.5)
+  )
+
+
+meteo_all_plots_meiosis <- temp_plots_meiosis + vpd_plots_meiosis
+
+# meteo_all_meiosis <- grid.arrange(temp_plots_meiosis, vpd_plots_meiosis, ncol = 2)
+
+meteo_all_plots_meiosis
+
+```
+
+### Leaf stage 6.0
+
+> Retrieve leaf stage 6.0 of **main stem** using linear regression, leaf stages before 4.0 are excluded, Plant 1rouge, 7rouge, 5blanc are not valid, the dates of leaf stage 6.0 for these 3 plants are manually added later
+
+```{r}
+#| results: hide
+#| label: leaf-stage-6.0
+
+library(tidyverse)
+library(lubridate)
+library(ggpubr)
+theme_set(theme_pubr())
+
+# import data
+leaf_stage <- readr::read_delim("raw.data/leaf.stage.csv", delim = ";", locale = locale(decimal_mark = ","))
+
+# filter out leaf 3 to optimize the linear regression ----
+leaf_stage <- leaf_stage |>
+  mutate(
+    # stage = if_else(stage > 10, stage * 0.1, stage),
+    plant = fct(plant),
+    date = dmy(date),
+    # check sowing date for each pot
+    sowing.date = date - DAS,
+    .after = date
+  )
+
+ggplot(leaf_stage) +
+  geom_histogram(aes(x = stage), na.rm = TRUE, bins = 30)
+
+
+leaf_stage |> 
+  # filter out leaf 3
+  filter(stage >= 4.0) |> 
+  # group_by(plant) |> 
+  ggplot(aes(x = DAS, y = stage)) +
+  geom_point() +
+  geom_smooth(method = lm, se = FALSE, na.rm = TRUE) +
+  labs(
+    x = "DAS (day)",
+    y = "Leaf stage"
+  ) +
+  facet_wrap(~plant)
+
+
+# examples of linear regression lines for plant "35" ----
+leaf_L6_regression_plot_example <- leaf_stage |>
+  # filter out leaf 3
+  filter(stage >= 4.0) |> 
+  filter(plant == "35") |>
+  ggscatter(x = "DAS", y = "stage",
+            # facet.by = "plant", # palette = "jco",
+            add = "reg.line",
+            conf.int = TRUE, # Add confidence interval
+            add.params = list(color = "#fc8d62",
+                              fill = "gray")
+  ) +
+  # stat_cor(method = "pearson",
+           # aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), 
+           # label.x = 18, label.y = 9) +
+  # stat_regline_equation(label.x = 18, label.y = 9.4) +
+  geom_segment(aes(x = -Inf, y = 6, xend = 26, yend = 6), linetype = "dashed", color = "red") +
+  geom_segment(aes(x = 26, y = -Inf, xend = 26, yend = 6), linetype = "dashed", color = "red") +
+  # geom_path(data = data.frame(x = c(-Inf, 4.5, 4.5), y = c(approx(X, Y, 4.5)$y, approx(X, Y, 4.5)$y, -Inf)), aes(x, y), color = "red", linetype = 2)
+  labs_pubr()
+ggpar(leaf_L6_regression_plot_example, 
+      xlim = c(18, 38),
+      xlab = "DAS (day)",
+      ylab = "Leaf Stage of the Main Stem "
+)
+ggsave("plots/leaf_L6_regression_plot_example_35.png", width = 12, height = 8)
+
+# all linear regression lines for all plant and tillers ----
+leaf_L6_regression_all_tillers_split <- leaf_stage |>
+  # filter out leaf 3
+  filter(stage >= 4.0) |> 
+  # filter(plant %in% c("9", "10", "11", "12")) |>
+  ggscatter(x = "DAS", y = "stage",
+            # facet.by = "plant", palette = "jco",
+            add = "reg.line",
+            conf.int = TRUE, # Add confidence interval
+            # cor.method = "pearson", 
+            conf.level = 0.95,
+            add.params = list(color = "#fc8d62",
+                              fill = "gray")
+  ) +
+  facet_wrap( ~ plant, nrow = 8) +
+  stat_cor(method = "pearson",
+           aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), 
+           label.x = 15, label.y = 8.5, size = 2.5) +
+  stat_regline_equation(label.x = 15, label.y = 9.5, size = 2.5) +
+  labs_pubr()
+leaf_L6_regression_all_tillers_split
+ggsave("plots/leaf_L6_regression_all_tillers_split.png", width = 24, height = 16)
+
+
+```
+
+### Spike length vs terminal spikelet stage
+
+> Retrieve spike length of terminal spikelet stage according to the anatomy observations
+
+```{r}
+#| label: spike-length
+#| results: hide
+
+library(tidyverse)
+library(dplyr)
+
+# import data
+spike_length <- read.csv("raw.data/spike.length.csv", sep = ";" , dec = ",")
+
+spike_length <- spike_length |> 
+  select(
+    plant,
+    scenario,
+    sampling.date,
+    tiller,
+    spike.name,
+    stage,
+    FLN.BM,
+    ligule.difference.mm = ligule.difference.mm.,
+    spike.length.mm = Spike.length..mm.,
+    obs,
+    TS.stage
+  ) |> 
+  mutate(sampling.date = dmy(sampling.date))
+
+# spike_length |> 
+#   filter(spike.length.mm < 7 & tiller == "BM") |> 
+#   ggplot() +
+#   geom_histogram(aes(x = spike.length.mm), bins = 100, na.rm = TRUE)
+
+spike_length_plot <- spike_length |> 
+  filter(TS.stage %in% c(0, 1, 2)) |> 
+  mutate(
+    # Convert the variable TS.stage from a numeric to a factor variable
+    TS.stage = as.factor(TS.stage),
+    TS.stage = factor(TS.stage, levels = c(0, 1, 2), labels = c("Before", "On", "After"))
+  ) |> 
+  ggplot(aes(x = TS.stage, y = spike.length.mm)) +
+  geom_violin(trim = TRUE, fill='#A4A4A4', color="darkred")+
+
+  geom_boxplot(width = 0.2, fill = "#A4A4A4") +
+  # geom_dotplot(binaxis ="y", stackdir = "center", dotsize = 1) +
+  geom_jitter(shape = 16, position = position_jitter(0.2)) +
+  
+  # add horizontal line at y = 2
+  geom_hline(yintercept = 1.92, linetype = "dashed") +
+  stat_summary(fun.y = mean, geom ="point", shape = 20, color = "red", size = 4) +
+  # stat_summary(fun.y = mean, geom = "point", size = 2) +
+  # stat_summary(fun.data = mean_sdl, mult=1, geom = "pointrange", color="red") +
+  # scale_fill_manual(values=c("#999999", "#E69F00", "#56B4E9")) +
+  labs(title="Spike Length vs Terminal Spikelet Stage", x = "TS.Stage", y = "Spike Length (mm)")+
+  theme_classic() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    element_line(size = 1),
+    text = element_text(size = 12),
+    axis.title = element_text(face = "bold", size = 12),
+    axis.text = element_text(size = 12),
+    # legend.position = c(0.1, 0.95),
+    # legend.text = element_text(face = "bold", size = 12),
+    axis.ticks = element_line(linewidth = 1)
+  )
+spike_length_plot
+```
+
+### Spike length vs day after leaf 6
+
+-   derive 3 missing points by average regressioned slope and the existing point
+
+-   separate plant with 7 leaves and 8 leaves.\
+    \
+    ![](plots/spike_length/spike_length_vs_day_after_leaf6.png)\
+    ![](plots/spike_length/spike_length_vs_day_after_leaf6_2.png)
+
+### Lingule distance vs day after leaf 6
+
+Filter plants with 8 FLN???, In this case, it is filtered out. Only plants with 7 FLN are kept.
+
+![](plots/lingule_DAS/lg_distance.vs.DAS.png)
+
+**lingule_distance_less_0.5_split**
+
+![](plots/lingule_DAS/lingule_distance_less_0.5_split.png){alt="lingule_distance_less_0.5_split"}
+
+**lingule_distance_less_0.5_togrther\
+\
+**![](plots/lingule_DAS/lingule_distance_less_0.5_together.png)
+
+**Calculate ligule_slope_mean = 2.12**
+
+summarise(ligule_slope_mean = mean(slope, **trim** = 0.2))
+
+![](plots/lingule_DAS/lingule_distance_more_0.5_split.png)
+
+**Then, extract the minimum distance of ligule value and inverse the DAS when lingule distance is 0 to obtain the DAS of last lingule appearance**
+
+**Together with the plants with lingule distance less than 0.5, regression can be made.**
+
+![](plots/lingule_DAS/lg_distance.vs.day_after_apearance.png)
+
+![](plots/lingule_DAS/lg_distance.vs.day_after_apearance_jitter.png)**\
+**
+
+### Tiller and spikelet flowering delay
+
+**preliminary + formal, no significant difference, so combine together**
+
+Only scenarios S0a, S0b, S1, S6 were included?????
+
+### \*\* **![](plots/flowering_delay/tiller_delay_histogram.png)** **![](plots/flowering_delay/tiller_delay_boxplot.png)** **![](plots/flowering_delay/tiller_delay_violin_plot.png)** **![](plots/flowering_delay/tiller_delay_bar_plot_mean_sd.png)** **![](plots/flowering_delay/tiller_delay_bar_plot_mean_se.png)** Anther Length\*\*
+
+### 
+
+# Experiment 2
+
+> This is to test effects of recurrent heat stress on wheat ear fertility.
+
+# Experiment 3
+
+> This is to test effects of recurrent heat stress on wheat ear fertility.
