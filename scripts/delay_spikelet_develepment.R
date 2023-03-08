@@ -174,7 +174,7 @@ spikelet_flowering_time |>
     mean_delay_flowering = mean(delay_flowering),
     median_delay_flowering = median(delay_flowering),
     sd = sd(delay_flowering),
-    se = sd/sqrt(n),
+    # se = sd/sqrt(n),
     .groups = "drop") |> 
   arrange(mean_delay_flowering) |> 
   # write_csv("output.csv.files/tiller_flowering_delay.csv")
