@@ -2,6 +2,7 @@
 # Data notes and libraries ----
 
 # Only scenario (optimal control + priming control) (T1 T6 T0a and T0b) are found in the data.??????????????
+# anthesis os spikelet to calculate tiller and spikelet flowering delay
 
 
 library(tidyverse)
@@ -292,115 +293,118 @@ spikelet_flowering_time |>
               xticks.by = 2)
   # labs_pubr()
   
-  # Line plot spikelet delay ----
+# Line plot spikelet flowering delay ----
+
+## spikelet delay together ----
+spikelet_flowering_time |>
+  # nan value will affect the analysis and visualization significantly
+  drop_na(flowering.date) |>
+  # modify the outlier
+  rows_update(tibble(plant = 1, tiller = "BM", spikelet.nb = 18, flowering.date = ymd("2021-03-29")),
+              by = c("plant", "tiller", "spikelet.nb")) |> 
+  group_by(plant, tiller) |> 
+  # firstly calculate earliest flowering time within each tiller, then calculate the flowering delay
+  # relative to the first flowering of the plant(usually located in the main spike)
+  mutate(flowering.date.tiller = min(flowering.date),
+         flowering.date.plant = if_else(tiller == "BM", flowering.date.tiller, NA_Date_),
+  ) |> 
+  group_by(plant) |> 
+  fill(flowering.date.plant, .direction = "down") |> 
+  mutate(flowering.date.plant = min(flowering.date),
+         delay_tiller_to_plant   = as.numeric(flowering.date.tiller - flowering.date.plant),
+         delay_spikelet_to_tiller = as.numeric(flowering.date - flowering.date.tiller),
+         delay_spikelet_to_plant = as.numeric(flowering.date - flowering.date.plant)
+  ) |> 
+  drop_na(spikelet.nb) |>
+  group_by(plant, tiller) |> 
   
-  ## spikelet delay together ----
-  spikelet_flowering_time |>
-    # nan value will affect the analysis and visualization significantly
-    drop_na(flowering.date) |>
-    # modify the outlier
-    rows_update(tibble(plant = 1, tiller = "BM", spikelet.nb = 18, flowering.date = ymd("2021-03-29")),
-                by = c("plant", "tiller", "spikelet.nb")) |> 
-    group_by(plant, tiller) |> 
-    # firstly calculate earliest flowering time within each tiller, then calculate the flowering delay
-    # relative to the first flowering of the plant(usually located in the main spike)
-    mutate(flowering.date.tiller = min(flowering.date),
-           flowering.date.plant = if_else(tiller == "BM", flowering.date.tiller, NA_Date_),
-    ) |> 
-    group_by(plant) |> 
-    fill(flowering.date.plant, .direction = "down") |> 
-    mutate(flowering.date.plant = min(flowering.date),
-           delay_tiller_to_plant   = as.numeric(flowering.date.tiller - flowering.date.plant),
-           delay_spikelet_to_tiller = as.numeric(flowering.date - flowering.date.tiller),
-           delay_spikelet_to_plant = as.numeric(flowering.date - flowering.date.plant)
-    ) |> 
-    drop_na(spikelet.nb) |>
-    group_by(plant, tiller) |> 
-    
-    # remove outliers, Interquartile Range(IQR) method (Tukey's method), more robust to non-normal distributions
-    # mutate(IQR = IQR(delay_spikelet_to_tiller),
-    #        O_upper = quantile(delay_spikelet_to_tiller, probs=c( .75), na.rm = FALSE)+1.5*IQR,
-    #        O_lower = quantile(delay_spikelet_to_tiller, probs=c( .25), na.rm = FALSE)-1.5*IQR
-    # ) |>
-    # filter(O_lower <= delay_spikelet_to_tiller & delay_spikelet_to_tiller <= O_upper) |> 
-    
-    # removing outliers
-    # (Z-score method), assuming approximately normal data,
-    mutate(mean = mean(delay_spikelet_to_tiller),
-           sd = sd(delay_spikelet_to_tiller),
-           z_score = abs((delay_spikelet_to_tiller - mean) / sd)
-    ) |>
-    filter(z_score < 2 ) |> 
-    ungroup() |> 
-    # filter(spikelet.nb %in% c(22, 23)) |> 
-    # all tiller type together(BM, T1, T2, T3)
-    ggline(
-      x = "spikelet.nb",
-      y = "delay_spikelet_to_tiller",
-      xlab = "Spikelet order",
-      ylab = "Flowering delay of spikelet within spike (days)", 
-      add = "mean_se", error.plot = "pointrange",
-      color = "steelblue",
-      size = 1.05,
-      # facet.by = "scenario"
-      yticks.by = 0.5
-    ) +
-    labs_pubr()
+  # remove outliers, Interquartile Range(IQR) method (Tukey's method), more robust to non-normal distributions
+  # mutate(IQR = IQR(delay_spikelet_to_tiller),
+  #        O_upper = quantile(delay_spikelet_to_tiller, probs=c( .75), na.rm = FALSE)+1.5*IQR,
+  #        O_lower = quantile(delay_spikelet_to_tiller, probs=c( .25), na.rm = FALSE)-1.5*IQR
+  # ) |>
+  # filter(O_lower <= delay_spikelet_to_tiller & delay_spikelet_to_tiller <= O_upper) |> 
   
+  # removing outliers
+  # (Z-score method), assuming approximately normal data,
+  mutate(mean = mean(delay_spikelet_to_tiller),
+         sd = sd(delay_spikelet_to_tiller),
+         z_score = abs((delay_spikelet_to_tiller - mean) / sd)
+  ) |>
+  filter(z_score < 2 ) |> 
+  ungroup() |> 
+  # filter(spikelet.nb %in% c(22, 23)) |> 
+  # all tiller type together(BM, T1, T2, T3)
+  ggline(
+    x = "spikelet.nb",
+    y = "delay_spikelet_to_tiller",
+    title = "mean+se",
+    xlab = "Spikelet order",
+    ylab = "Flowering delay of spikelet within spike (days)", 
+    add = "mean_se", error.plot = "pointrange",
+    color = "steelblue",
+    size = 1.05,
+    # facet.by = "scenario"
+    yticks.by = 0.5
+  ) +
+  labs_pubr()
+ggsave("plots/flowering_delay/spikelet_flowering_delay_all_tillers_together.png", width = 12, height = 8)
+
+
+# filter(tiller == "BM")
+## spikelet delay split ----
+spikelet_flowering_time |>
+  # nan value will affect the analysis and visualization significantly
+  drop_na(flowering.date) |>
+  # filter(plant_type == "formal") |>  
+  # modify the outlier
+  rows_update(tibble(plant = 1, tiller = "BM", spikelet.nb = 18, flowering.date = ymd("2021-03-29")),
+              by = c("plant", "tiller", "spikelet.nb")) |> 
+  group_by(plant, tiller) |> 
+  # firstly calculate earliest flowering time within each tiller, then calculate the flowering delay
+  # relative to the first flowering of the plant(usually located in the main spike)
+  mutate(flowering.date.tiller = min(flowering.date),
+         flowering.date.plant = if_else(tiller == "BM", flowering.date.tiller, NA_Date_),
+  ) |> 
+  group_by(plant) |> 
+  fill(flowering.date.plant, .direction = "down") |> 
+  mutate(flowering.date.plant = min(flowering.date),
+         delay_tiller_to_plant   = as.numeric(flowering.date.tiller - flowering.date.plant),
+         delay_spikelet_to_tiller = as.numeric(flowering.date - flowering.date.tiller),
+         delay_spikelet_to_plant = as.numeric(flowering.date - flowering.date.plant)
+  ) |> 
+  drop_na(spikelet.nb) |>
+  group_by(plant, tiller) |> 
   
-  # filter(tiller == "BM")
-  ## spikelet delay split ----
-  spikelet_flowering_time |>
-    # nan value will affect the analysis and visualization significantly
-    drop_na(flowering.date) |>
-    # filter(plant_type == "formal") |>  
-    # modify the outlier
-    rows_update(tibble(plant = 1, tiller = "BM", spikelet.nb = 18, flowering.date = ymd("2021-03-29")),
-                by = c("plant", "tiller", "spikelet.nb")) |> 
-    group_by(plant, tiller) |> 
-    # firstly calculate earliest flowering time within each tiller, then calculate the flowering delay
-    # relative to the first flowering of the plant(usually located in the main spike)
-    mutate(flowering.date.tiller = min(flowering.date),
-           flowering.date.plant = if_else(tiller == "BM", flowering.date.tiller, NA_Date_),
-    ) |> 
-    group_by(plant) |> 
-    fill(flowering.date.plant, .direction = "down") |> 
-    mutate(flowering.date.plant = min(flowering.date),
-           delay_tiller_to_plant   = as.numeric(flowering.date.tiller - flowering.date.plant),
-           delay_spikelet_to_tiller = as.numeric(flowering.date - flowering.date.tiller),
-           delay_spikelet_to_plant = as.numeric(flowering.date - flowering.date.plant)
-    ) |> 
-    drop_na(spikelet.nb) |>
-    group_by(plant, tiller) |> 
-    
-    # remove outliers, Interquartile Range(IQR) method (Tukey's method), more robust to non-normal distributions
-    # mutate(IQR = IQR(delay_spikelet_to_tiller),
-    #        O_upper = quantile(delay_spikelet_to_tiller, probs=c( .75), na.rm = FALSE)+1.5*IQR,
-    #        O_lower = quantile(delay_spikelet_to_tiller, probs=c( .25), na.rm = FALSE)-1.5*IQR
-    # ) |>
-    # filter(O_lower <= delay_spikelet_to_tiller & delay_spikelet_to_tiller <= O_upper) |> 
-    
-    # removing outliers
-    # (Z-score method), assuming approximately normal data,
-    mutate(mean = mean(delay_spikelet_to_tiller),
-           sd = sd(delay_spikelet_to_tiller),
-           z_score = abs((delay_spikelet_to_tiller - mean) / sd)
-    ) |>
-    filter(z_score < 2 ) |> 
-    ungroup() |> 
-    # all tiller type together(BM, T1, T2, T3)
-    ggline(
-      x = "spikelet.nb",
-      y = "delay_spikelet_to_tiller",
-      xlab = "Spikelet order",
-      ylab = "Flowering delay of spikelet within spike (days)",
-      add = "mean",
-      color = "tiller", palette = "jco",
-      linetype = "tiller", shape = "tiller", size = 1.08,
-      # facet.by = "scenario",
-      yticks.by = 0.5
-    ) +
-    labs_pubr()
+  # remove outliers, Interquartile Range(IQR) method (Tukey's method), more robust to non-normal distributions
+  # mutate(IQR = IQR(delay_spikelet_to_tiller),
+  #        O_upper = quantile(delay_spikelet_to_tiller, probs=c( .75), na.rm = FALSE)+1.5*IQR,
+  #        O_lower = quantile(delay_spikelet_to_tiller, probs=c( .25), na.rm = FALSE)-1.5*IQR
+  # ) |>
+  # filter(O_lower <= delay_spikelet_to_tiller & delay_spikelet_to_tiller <= O_upper) |> 
+  
+  # removing outliers
+  # (Z-score method), assuming approximately normal data,
+  mutate(mean = mean(delay_spikelet_to_tiller),
+         sd = sd(delay_spikelet_to_tiller),
+         z_score = abs((delay_spikelet_to_tiller - mean) / sd)
+  ) |>
+  filter(z_score < 2 ) |> 
+  ungroup() |> 
+  # all tiller type together(BM, T1, T2, T3)
+  ggline(
+    x = "spikelet.nb",
+    y = "delay_spikelet_to_tiller",
+    xlab = "Spikelet order",
+    ylab = "Flowering delay of spikelet within spike (days)",
+    add = "mean",
+    color = "tiller", palette = "jco",
+    linetype = "tiller", shape = "tiller", size = 1.08,
+    # facet.by = "scenario",
+    yticks.by = 0.5
+  ) +
+  labs_pubr()
+ggsave("plots/flowering_delay/spikelet_flowering_delay_tillers_split.png", width = 12, height = 8)
 
 
 

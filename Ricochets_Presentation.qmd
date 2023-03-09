@@ -663,7 +663,11 @@ summarise(ligule_slope_mean = mean(slope, **trim** = 0.2))
 
 Only scenarios S0a, S0b, S1, S6 were included?????
 
-### \*\* **![](plots/flowering_delay/tiller_delay_histogram.png)** **![](plots/flowering_delay/tiller_delay_boxplot.png)** **![](plots/flowering_delay/tiller_delay_violin_plot.png)** **![](plots/flowering_delay/tiller_delay_bar_plot_mean_sd.png)** **![](plots/flowering_delay/tiller_delay_bar_plot_mean_se.png)** Anther Length\*\*
+### \*\* **![](plots/flowering_delay/tiller_delay_histogram.png)** **![](plots/flowering_delay/tiller_delay_boxplot.png)** **![](plots/flowering_delay/tiller_delay_violin_plot.png)** **![](plots/flowering_delay/tiller_delay_bar_plot_mean_sd.png)** **![](plots/flowering_delay/tiller_delay_bar_plot_mean_se.png)** ![](plots/flowering_delay/spikelet_flowering_delay_all_tillers_together.png)
+
+![](plots/flowering_delay/spikelet_flowering_delay_tillers_split.png)
+
+### Anther Length\*\*
 
 ### 
 

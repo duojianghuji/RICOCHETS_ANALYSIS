@@ -54,7 +54,7 @@ pot_lg_distance_less_0.5 <- lg_between_ligule |>
 
 pot_lg_distance_less_0.5
 
-## select lg_distance_less_0.5 ----
+
 # Filter the "lg_between_ligule" to keep only rows the "pot_lg_distance_less_0.5" is true
 lg_between_ligule_filter <- lg_between_ligule |> 
   filter(Pot %in% pot_lg_distance_less_0.5$Pot) 
