@@ -86,15 +86,21 @@ leaf_stage_regression_plot_35 <- leaf_stage |>
   # geom_path(data = data.frame(x = c(-Inf, 4.5, 4.5), y = c(approx(X, Y, 4.5)$y, approx(X, Y, 4.5)$y, -Inf)), aes(x, y), color = "red", linetype = 2)
   labs_pubr()
 ggpar(leaf_stage_regression_plot_35, 
-      xlim = c(18, 38),
+      main = "plant 35",
+      xlim = c(18, 38), xticks.by = 2,
       xlab = "DAS (day)",
       ylab = "Leaf Stage of the Main Stem "
 )
-ggsave("plots/leaf_stages/leaf_L6_regression_plot_35.png", width = 12, height = 8)
+# plot.title = element_text(hjust = 0.5)
+ggsave("plots/leaf_stages/for_paper/leaf_L6_regression_plot_35.png", width = 12, height = 8)
 
 ## all tillers ----
 
 ### before modified ----
+#### for us to see ----
+# include all plants(preliminary + formal)
+
+
 # all linear regression lines for all plant and tillers, before the data modified
 leaf_stage_regression_all_tillers_split_original <- leaf_stage |>
   # leaf 3 is included 
@@ -117,7 +123,36 @@ leaf_stage_regression_all_tillers_split_original <- leaf_stage |>
 leaf_stage_regression_all_tillers_split_original
 ggsave("plots/leaf_stages/leaf_stage_regression_all_tillers_split_original.png", width = 24, height = 16)
 
+#### for publication ----
+# only formal plants
+
+# all linear regression lines for all plant and tillers, before the data modified
+leaf_stage_regression_all_tillers_split_formal <- leaf_stage |>
+  # leaf 3 is excluded 
+  # filter(stage >= 4.0) |> 
+  
+  # only formal plants
+  filter(pot > 8) |> 
+  ggscatter(x = "DAS", y = "stage",
+            # facet.by = "plant", palette = "jco",
+            add = "reg.line",
+            conf.int = TRUE, # Add confidence interval
+            # cor.method = "pearson", 
+            conf.level = 0.95,
+            add.params = list(color = "#fc8d62",
+                              fill = "gray")
+  ) +
+  facet_wrap( ~ plant, nrow = 9) +
+  stat_cor(method = "pearson",
+           aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), 
+           label.x = 15, label.y = 8.5, size = 2.5) +
+  # stat_regline_equation(label.x = 15, label.y = 9.5, size = 2.5) +
+  labs_pubr()
+leaf_stage_regression_all_tillers_split_formal
+ggsave("plots/leaf_stages/for_paper/leaf_stage_regression_all_tillers_split_formal.png", width = 24, height = 16)
+
 ### after modified ----
+# some duplicates are not reasonable, they are modified, see details in the function of plot_all_tillers_split()
 plot_all_tillers_split()
 
 #±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
