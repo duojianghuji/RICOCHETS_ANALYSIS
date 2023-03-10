@@ -99,14 +99,14 @@ spikelet_flowering_time |>
   ) |> 
   ungroup() |> 
   filter(!(tiller == "BM" & delay_flowering > 0)) |> 
-  mutate(tiller = factor(tiller, levels=c("BM", "T1", "T2", "T3", "T0", "T1.1", "T2.1"))) |> 
+  mutate(tiller = factor(tiller, levels=c("BM", "T1", "T2", "T3", "T0", "T1.1", "T2.1"))) |>
   # group_by(tiller) |>
   # filter(plant_type == "formal") |> 
   # filter(tiller != "BM") |> 
-  ggplot(aes(x = tiller, y = delay_flowering)) +
-  # ggplot(aes(x = reorder(tiller, delay_flowering, mean), y = delay_flowering, fill = tiller)) +
-  # geom_boxplot() +
-  geom_point(stat = "identity")
+  # ggplot(aes(x = tiller, y = delay_flowering)) +
+  ggplot(aes(x = reorder(tiller, delay_flowering, mean), y = delay_flowering, fill = tiller)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.1, height = 0)) +
   # geom_jitter(shape=16, position=position_jitter(0.15)) +
   stat_mean(geom = "point", shape = 17, color = "red", size = 2) +
   scale_fill_brewer(palette = "Blues") +
@@ -128,7 +128,7 @@ spikelet_flowering_time |>
   mutate(flowering.date.plant = min(flowering.date),
          delay_flowering   = as.numeric(flowering.date - flowering.date.plant)
   ) |> 
-  print(n=132)
+  # print(n=132) |> 
   # group_by(tiller) |> 
   # filter(plant_type == "formal") |> 
   filter(!(tiller == "BM" & delay_flowering != 0)) |> 
@@ -141,16 +141,80 @@ spikelet_flowering_time |>
     ylab = "Flowering delay (day)",
     fill = "tiller",
     palette = "Blues",
-    add = "boxplot",
+    add = "boxplot", 
     add.params = list(fill = "lightgray"),
     # outlier.shape = 25,
     order = c("BM", "T1", "T2", "T3", "T0", "T1.1", "T2.1"),
-    trim = TRUE
+    trim = FALSE,
   ) +
   stat_mean(geom = "point", shape = 17, color = "#e6550d", size = 2.5) +
   theme(legend.position = "none") +
   scale_y_continuous(breaks = seq(0, 10.0, by = 1.0)) +
   labs_pubr()
+
+## ggboxplot ggpubr ----
+
+spikelet_flowering_time |>
+  drop_na(flowering.date) |> 
+  group_by(plant_type, plant, tiller) |> 
+  slice_min(flowering.date, with_ties = FALSE) |> 
+  rows_update(tibble(plant = 1, tiller = "BM", flowering.date = ymd("2021-03-29")), by = c("plant", "tiller")) |>
+  distinct(plant, tiller, flowering.date) |> 
+  group_by(plant) |> 
+  # calculate the delay for all tillers
+  mutate(flowering.date.plant = min(flowering.date),
+         delay_flowering   = as.numeric(flowering.date - flowering.date.plant)
+  ) |> 
+  # print(n=132) |> 
+  # group_by(tiller) |> 
+  # filter(plant_type == "formal") |> 
+  filter(!(tiller == "BM" & delay_flowering != 0)) |> 
+  ggdotplot(
+    x = "tiller",
+    y = "delay_flowering", 
+    title = "formal + preliminary",
+    xlab = "Tiller", 
+    ylab = "Flowering delay (day)",
+    add = "boxplot",
+    fill = "tiller",
+    palette = "Blues",
+    order = c("BM", "T1", "T2", "T3", "T0", "T1.1", "T2.1"),
+  ) +
+  stat_mean(geom = "point", shape = 17, color = "#e6550d", size = 2.5) +
+  theme(legend.position = "none") +
+  scale_y_continuous(breaks = seq(0, 10.0, by = 1.0)) +
+  labs_pubr()
+ggsave("plots/flowering_delay/spikelet_flowering_delay_all_tillers_dotplot.png", width = 12, height = 8)
+
+  
+  
+  
+
+
+
+  # mutate(tiller = factor(tiller)) |>
+  ggviolin(
+    x = "tiller",
+    y = "delay_flowering", 
+    title = "formal + preliminary",
+    xlab = "Tiller", 
+    ylab = "Flowering delay (day)",
+    fill = "tiller",
+    palette = "Blues",
+    add = c("boxplot", "jitter"),
+    add.params = list(fill = "lightgray"),
+    # outlier.shape = 25,
+    order = c("BM", "T1", "T2", "T3", "T0", "T1.1", "T2.1"),
+    trim = FALSE,
+  ) +
+
+
+
+
+
+
+
+
 
 
 # Bar plot ----

@@ -70,7 +70,34 @@ DAS_lg_distance_0_less_0.5mm <- lg_between_ligule_filter |>
   slice_min(distance.ligule, n = 1) |> 
   rename(DAS_lg_distance_0 = DAS)
 
-DAS_lg_distance_0_less_0.5mm
+
+### fitting plot ----
+DAS_lg_distance_0_less_0.5mm |> 
+  select(Pot, DAS_lg_distance_0) |> 
+  right_join(lg_between_ligule_filter, by = "Pot") |> 
+  mutate(day_after_last_lingule_appearance = DAS - DAS_lg_distance_0) |> 
+  # filter(FLN == 7) |>
+  filter(DAS < 50) |>
+  # filter(!Pot %in% c(73, 74 ,81)) |> 
+  ggplot(aes(day_after_last_lingule_appearance, distance.ligule)) +
+  geom_point(aes(group = FLN, color = FLN), position = position_jitter(0.1), size = 3) +
+  geom_smooth(method = "lm", color = "#fc8d62") +
+  # facet_wrap( ~ Pot) +
+  stat_cor(method = "pearson",
+           aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), 
+           label.x = 0, label.y = 9.5, size = 4) +
+  stat_regline_equation(label.x = 0, label.y = 10.5, size = 4) +
+  labs(title = "lingule_distance_less_0.5_together") +
+  scale_x_continuous(breaks = seq(0, 6, by = 1))
+  labs_pubr()
+ggsave("plots/lingule_DAS/lingule_distance_less_0.5_together_new.png", width = 12, height = 8)
+  
+
+
+
+
+
+
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # Exploring data ----

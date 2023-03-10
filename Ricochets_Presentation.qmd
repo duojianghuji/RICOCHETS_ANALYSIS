@@ -619,11 +619,14 @@ spike_length_plot <- spike_length |>
 spike_length_plot
 ```
 
+![](plots/leaf_stages/for_paper/leaf_stage_regression_all_tillers_split_formal.png)
+
 ### Spike length vs day after leaf 6
 
 -   derive 3 missing points by average regressioned slope and the existing point
 
 -   separate plant with 7 leaves and 8 leaves.\
+    \
     \
     ![](plots/spike_length/spike_length_vs_day_after_leaf6.png)\
     ![](plots/spike_length/spike_length_vs_day_after_leaf6_2.png)
@@ -641,6 +644,8 @@ Filter plants with 8 FLN???, In this case, it is filtered out. Only plants with 
 **lingule_distance_less_0.5_togrther\
 \
 **![](plots/lingule_DAS/lingule_distance_less_0.5_together.png)
+
+![](plots/lingule_DAS/lingule_distance_less_0.5_together_new.png)
 
 **Calculate ligule_slope_mean = 2.12**
 
@@ -663,7 +668,11 @@ summarise(ligule_slope_mean = mean(slope, **trim** = 0.2))
 
 Only scenarios S0a, S0b, S1, S6 were included?????
 
-### \*\* **![](plots/flowering_delay/tiller_delay_histogram.png)** **![](plots/flowering_delay/tiller_delay_boxplot.png)** **![](plots/flowering_delay/tiller_delay_violin_plot.png)** **![](plots/flowering_delay/tiller_delay_bar_plot_mean_sd.png)** **![](plots/flowering_delay/tiller_delay_bar_plot_mean_se.png)** ![](plots/flowering_delay/spikelet_flowering_delay_all_tillers_together.png)
+### \*\* **![](plots/flowering_delay/tiller_delay_histogram.png)** **![](plots/flowering_delay/tiller_delay_boxplot.png)** **![](plots/flowering_delay/tiller_delay_violin_plot.png)**
+
+![](plots/flowering_delay/spikelet_flowering_delay_all_tillers_dotplot.png)
+
+### **![](plots/flowering_delay/tiller_delay_bar_plot_mean_sd.png)** **![](plots/flowering_delay/tiller_delay_bar_plot_mean_se.png)** ![](plots/flowering_delay/spikelet_flowering_delay_all_tillers_together.png)
 
 ![](plots/flowering_delay/spikelet_flowering_delay_tillers_split.png)
 

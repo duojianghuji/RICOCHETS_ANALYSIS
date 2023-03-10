@@ -11,7 +11,8 @@ theme_set(theme_pubr())
 
 #±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
 # Import data ----
-anther_length <- read_excel("raw.data/anthere.length.new.xlsx") |> 
+anther_length <- read_excel("raw.data/anthere.length.new.xlsx") 
+
   select(plant = plante,
          scenario = traitement,
          sampling.date = `date prélèvement`,
