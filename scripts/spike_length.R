@@ -19,6 +19,9 @@ library(lubridate)
 library(ggpubr)
 library(plotly)
 library(InraeThemes)
+library(broom)
+# nonlinear fitting
+library(easynls)
 theme_inrae()
 
 #±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
@@ -117,6 +120,112 @@ spike_length_vs_day_after_leaf6 <- spike_length  |>
 spike_length_vs_day_after_leaf6
 
 glimpse(spike_length_vs_day_after_leaf6)
+
+# fitting exponential growth
+m <- spike_length_vs_day_after_leaf6 |> 
+  filter(day_after_leaf6 < 10) |>
+  # filter(FLN.BM != "7") |> 
+  filter(FLN.BM == "NA-7") |> 
+  select(day_after_leaf6, spike.length.mm)
+
+
+  nlsfit(model = 6)
+
+m
+
+nlsplot(model = 6, start = c(1.6, 0.3))
+  group_by(day_after_leaf6) |> 
+  summarise(spike.length.mm = mean(spike.length.mm)) |> 
+  distinct(day_after_leaf6, spike.length.mm) |> 
+  ungroup() |> 
+
+  
+  nlsplot(model = 6, start = c(1.6, 0.3))
+
+  predict()
+  
+  
+  
+  
+  
+  ggplot(aes(day, spike.length)) +
+  geom_point() +
+  
+  geom_smooth(method = "nls", formula = y ~ a * exp(r * x), se = FALSE, method.args = list(start = c(a = 1.0767, r = 0.027))) 
+  ylim(0, 20) +
+  xlim(-2, 8)+
+
+  stat_regline_equation(data = ., formula = y ~ a * exp(r * x), label.x = -1, label.y = 15)
+
+#############################################################################
+  library(tibble)
+  
+  m <- tibble(
+    day_after_leaf6 = c(-1, 0, 1, 3, 4, 4, 4, 4, 6, 8, 8, 8, 8, 8, 8),
+    spike.length.mm = c(1.8, 2, 2.5, 4.002638374, 4.393139679, 4.822691115, 5.247361284, 5.97955123, 8.981530011, 9.762532621, 9.840632882, 11.71503914, 14.39973562, 15.86411551, 16.69393078)
+  )
+  
+  m
+  
+  
+
+exp_model <- function(x, a, b) {
+  a * exp(b * x)
+}
+
+# Estimate the model parameters using nls
+fit <- nls(spike.length.mm ~ exp_model(day_after_leaf6, a, b), data = m, 
+           start = list(a = 2, b = 0.15))
+
+# Print the model summary
+tidy(fit)
+
+# Plot the data and model
+ggplot(data = m, aes(x = day_after_leaf6, y = spike.length.mm)) +
+  geom_point() +
+  geom_line(aes(y = predict(fit)))
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+spike_length_vs_day_after_leaf6 |> 
+  filter(day_after_leaf6 < 10) |>
+  filter(FLN.BM != "7") |>
+  ggplot(aes(y = day_after_leaf6, x = spike.length.mm,)) +
+  geom_point(aes(group = FLN.BM, color = FLN.BM, shape = FLN.BM), size = 3) + 
+  
+  stat_smooth(data = . %>% filter(FLN.BM == "NA-7"), 
+              method = "lm", formula = y ~ log(x), se = FALSE) +
+
+  stat_regline_equation(data = . %>% filter(FLN.BM == "NA-7"), 
+                        formula = y ~ exp(x), label.x = -1, label.y = 15)
+
+
+
+
+
+
+p
+  nlsplot(model = 6, start = c(1.6, 0.3))
+  ggplotly(p)
+
+  nlsfit(model = 6)
+
+m$Parameters
+
+
+
+
 
 # Create the plot with a smooth line
 spike_length_vs_day_after_leaf6 |> 
