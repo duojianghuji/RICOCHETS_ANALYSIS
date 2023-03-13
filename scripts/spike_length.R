@@ -34,7 +34,7 @@ glimpse(spike_length)
 view(spike_length)
 view(DAS_leaf6_by_plant)
 
-spike_length <- spike_length |> 
+spike_length_all_tiller <- spike_length |> 
   select(
     plant,
     scenario,
@@ -66,8 +66,9 @@ spike_length <- spike_length |>
 # Graphs ----
 
 ## spike_length_vs_TS_stage ----
-
-spike_length_vs_TS_stage <- spike_length |> 
+# for all tillers
+spike.length_vs_TS.stage <- spike_length_all_tiller |> 
+  # filter(tiller == "BM") |> 
   filter(TS.stage %in% c(0, 1, 2)) |> 
   mutate(
     # Convert the variable TS.stage from a numeric to a factor variable
@@ -99,30 +100,183 @@ spike_length_vs_TS_stage <- spike_length |>
     # legend.text = element_text(face = "bold", size = 12),
     axis.ticks = element_line(linewidth = 1)
   )
-spike_length_vs_TS_stage
+spike.length_vs_TS.stage
 ggsave("plots/spike_length/spike_length_vs_TS_stage.png", width = 12, height = 8)
 
 ## splike length vs day after appearance of leaf 6 ----
 
-# remove duplicates and remove plants with 8 flag leaves
-spike_length_vs_day_after_leaf6 <- spike_length  |> 
+# all tillers
+spike.length_vs_day.after.leaf6 <- spike_length_all_tiller  |> 
   # Notice!! exclude = NULL include the NA value as a level
   mutate(FLN.BM = factor(FLN.BM, exclude = NULL, labels = c(levels(factor(FLN.BM)), "NA-7"))) |> 
-  filter(tiller == "BM") |> 
-  left_join(DAS_leaf6_by_plant) |> 
+  left_join(DAS_leaf6_by_plant, by = "plant") |> 
   mutate(
-    day_after_leaf6 = DAS.sampling - DAS_leaf6_rounded
+    day_after_leaf6_BM = DAS.sampling - DAS_leaf6_rounded
   ) |> 
   # filter(plant %in% c("1rouge", "5blanc", "7rouge"))
-  select(plant,FLN.BM, spike.length.mm, sampling.date, DAS.sampling, DAS_leaf6, DAS_leaf6_rounded, day_after_leaf6) |> 
-  arrange(spike.length.mm)
+  select(plant, tiller, FLN.BM, spike.length.mm, sampling.date, DAS.sampling, DAS_leaf6, DAS_leaf6_rounded, day_after_leaf6_BM) |> 
+  arrange(tiller, spike.length.mm)
 
-spike_length_vs_day_after_leaf6
+spike.length_vs_day.after.leaf6
 
-glimpse(spike_length_vs_day_after_leaf6)
+# fitted tillers
+fitted_tiller <- spike.length_vs_day.after.leaf6 |> 
+  select(day_after_leaf6_BM,
+         spike.length.mm,
+         tiller,
+         FLN.BM       
+  ) |> 
+  drop_na(spike.length.mm) |> 
+  filter(FLN.BM != "8") |>
+  count(tiller) |> 
+  filter(n > 10)
+
+fitted_tiller
+
+# nested spike length by "tiller"
+nested.spike.length.filtered_tiller <- spike.length_vs_day.after.leaf6 |> 
+  select(day_after_leaf6_BM,
+         spike.length.mm,
+         tiller,
+         FLN.BM       
+  ) |> 
+  drop_na(spike.length.mm) |> 
+  # filter(day_after_leaf6_BM < 10) |> 
+  filter(FLN.BM != "8") |>
+  # filter(FLN.BM == "NA-7") |>
+  filter(tiller %in% fitted_tiller$tiller) |>
+  nest(data = -tiller)
+nested.spike.length.filtered_tiller
+
+# fit exponential growth model
+expfit <- nested.spike.length.filtered_tiller |>  
+  # LG0:initial spike length coefficient?; SER: spike elongation rate;
+  # TS.BM: Terminal spikelet stage of main stem
+  mutate(
+    exp_fit = map(data, ~ nls(spike.length.mm ~ LG0 * exp(SER * day_after_leaf6_BM),
+                              data = .x,
+                              start = list(LG0 = 2, SER = 0.2)),
+    ),
+    tidied = map(exp_fit, tidy),
+    glanced = map(exp_fit, glance),
+    augmented = map(exp_fit, augment),
+  )
+
+# check parameters significance
+expfit |> 
+  unnest(tidied) |> 
+  select(tiller, term, estimate, std.error, p.value)
+  # filter(p.value > 0.05) |> 
+
+
+# extract the mean spike growth rate "SER"
+mean_SER <- expfit |> 
+  unnest(tidied) |> 
+  select(tiller, term, estimate) |> 
+  filter(term == "SER") |> 
+  summarise(mean_SER = mean(estimate)) |> 
+  pull()
+
+mean_SER
+
+# plot
+
+t <- tibble(time = seq(-1.2, 15, length.out = 1000))
+t
+pred_t <- t|> 
+  mutate(
+    pred_NA_7 = predict(fit_7, newdata = list(day_after_leaf6_BM =  t$day_after_leaf6_BM)),
+    pred_7  = predict(fit_NA_7, newdata = list(day_after_leaf6_BM =  t$day_after_leaf6_BM))
+  )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# main stem
+spike.length_vs_day.after.leaf6 |> 
+  filter(tiller == "BM") |> 
+  ggplot(aes(day_after_leaf6_BM, spike.length.mm)) +
+  geom_point() +
+  geom_smooth(method = "nls", formula = y ~ a * exp(r * x), se = FALSE, method.args = list(start = c(a = 1, r = 0.18))) +
+  stat_regline_equation(formula = y ~ a * exp(r * x), label.x = -1, label.y = 15)
+
+
+BM <- spike.length_vs_day.after.leaf6 |> 
+  filter(tiller == "BM") |> 
+  filter(FLN.BM != "8")
+  # filter(day_after_leaf6_BM < 10)
+
+T1 <- spike.length_vs_day.after.leaf6 |> 
+  filter(tiller == "T1") |> 
+  filter(FLN.BM != "8")
+
+T2 <- spike.length_vs_day.after.leaf6 |> 
+  filter(tiller == "T2") |> 
+  filter(FLN.BM != "8")
+
+BM
+
+BM |> 
+  ggplot(aes(day_after_leaf6_BM, spike.length.mm)) +
+  geom_point(aes(group = FLN.BM, color = FLN.BM, shape = FLN.BM), size = 2)
+
+  
+fit <- nls(data = BM, 
+           spike.length.mm ~ LG0 * exp(SER * day_after_leaf6_BM),
+           start = list(LG0 = 1.5, SER = 0.2))
+
+
+tidy(fit)
+
+DAS_leaf6_by_plant
+
+glimpse(spike.length_vs_day.after.leaf6)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # fitting exponential growth
-m <- spike_length_vs_day_after_leaf6 |> 
+m <- spike.length_vs_day.after.leaf6 |> 
   filter(day_after_leaf6 < 10) |>
   # filter(FLN.BM != "7") |> 
   filter(FLN.BM == "NA-7") |> 
@@ -198,7 +352,7 @@ ggplot(data = m, aes(x = day_after_leaf6, y = spike.length.mm)) +
   
 
 
-spike_length_vs_day_after_leaf6 |> 
+spike.length_vs_day.after.leaf6 |> 
   filter(day_after_leaf6 < 10) |>
   filter(FLN.BM != "7") |>
   ggplot(aes(y = day_after_leaf6, x = spike.length.mm,)) +
@@ -228,7 +382,7 @@ m$Parameters
 
 
 # Create the plot with a smooth line
-spike_length_vs_day_after_leaf6 |> 
+spike.length_vs_day.after.leaf6 |> 
   filter(day_after_leaf6 < 10) |>
   filter(FLN.BM != "7") |>
   ggplot(aes(day_after_leaf6, spike.length.mm,)) +
@@ -250,9 +404,9 @@ spike_length_vs_day_after_leaf6 |>
   
   
   
-  # geom_smooth(data = spike_length_vs_day_after_leaf6 %>% filter(is.na(FLN.BM)), method = "lm", formula = y ~ poly(x, 3, raw = TRUE)) +
+  # geom_smooth(data = spike.length_vs_day.after.leaf6 %>% filter(is.na(FLN.BM)), method = "lm", formula = y ~ poly(x, 3, raw = TRUE)) +
   # # difference between raw vs. orthogonal raw = TRUE or FALSE???????????????????????????
-  # stat_regline_equation(data = spike_length_vs_day_after_leaf6 %>% filter(is.na(FLN.BM)), formula = y ~ poly(x, 3, raw = TRUE), label.x = -1, label.y = 15) +
+  # stat_regline_equation(data = spike.length_vs_day.after.leaf6 %>% filter(is.na(FLN.BM)), formula = y ~ poly(x, 3, raw = TRUE), label.x = -1, label.y = 15) +
   
   # polynomial fitting to the power of 3
   geom_smooth(data = . %>% filter(FLN.BM == "NA-7"), 
@@ -268,11 +422,11 @@ spike_length_vs_day_after_leaf6 |>
   method = "gam", 
   
   
-ggsave("plots/spike_length/spike_length_vs_day_after_leaf6.png", width = 12, height = 8)
+ggsave("plots/spike_length/spike.length_vs_day.after.leaf6.png", width = 12, height = 8)
 
-spike_length_vs_day_after_leaf6 |> 
+spike.length_vs_day.after.leaf6 |> 
   select(plant, day_after_leaf6, spike.length.mm) |> 
-  write_csv("output.csv.files/spike_length_vs_day_after_leaf6.csv")
+  write_csv("output.csv.files/spike.length_vs_day.after.leaf6.csv")
 
 #±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
 
@@ -323,7 +477,7 @@ mutate(spike_length, FLN.BM = as_factor(FLN.BM))
 levels(spike_length$FLN.BM)
 glimpse(spike_length)
 # remove duplicates and remove plants with 8 flag leaves
-spike_length_vs_day_after_leaf6 <- spike_length  |> 
+spike.length_vs_day.after.leaf6 <- spike_length  |> 
   # Notice!! exclude = NULL include the NA value as a level
   mutate(FLN.BM = factor(FLN.BM, exclude = NULL, labels = c(levels(factor(FLN.BM)), "NA-7"))) |> 
   filter(tiller == "BM") |> 
@@ -338,9 +492,9 @@ spike_length_vs_day_after_leaf6 <- spike_length  |>
   # drop_na(day_after_leaf6)
   # filter(spike.length.mm < 12) |>
 
-spike_length_vs_day_after_leaf6
+spike.length_vs_day.after.leaf6
 
-glimpse(spike_length_vs_day_after_leaf6)
+glimpse(spike.length_vs_day.after.leaf6)
 
 
 ###############################################################################
@@ -406,19 +560,19 @@ to_be_replaced_in_spike_to_leaf_stage
 to_be_replaced_plants <- to_be_replaced_in_spike_to_leaf_stage$plant
 
 ###############################################################################
-spike_length_vs_day_after_leaf6
-spike_length_vs_day_after_leaf6 |> 
+spike.length_vs_day.after.leaf6
+spike.length_vs_day.after.leaf6 |> 
   filter(FLN.BM == "8")
 
 # Create the plot with a smooth line
-spike_length_vs_day_after_leaf6 |> 
+spike.length_vs_day.after.leaf6 |> 
   filter(day_after_leaf6 < 10) |>
   filter(FLN.BM != "7") |>
   ggplot(aes(day_after_leaf6, spike.length.mm,)) +
   geom_point(aes(group = FLN.BM, color = FLN.BM, shape = FLN.BM), size = 3) + 
-  # geom_smooth(data = spike_length_vs_day_after_leaf6 %>% filter(is.na(FLN.BM)), method = "lm", formula = y ~ poly(x, 3, raw = TRUE)) +
+  # geom_smooth(data = spike.length_vs_day.after.leaf6 %>% filter(is.na(FLN.BM)), method = "lm", formula = y ~ poly(x, 3, raw = TRUE)) +
   # # difference between raw vs. orthogonal raw = TRUE or FALSE???????????????????????????
-  # stat_regline_equation(data = spike_length_vs_day_after_leaf6 %>% filter(is.na(FLN.BM)), formula = y ~ poly(x, 3, raw = TRUE), label.x = -1, label.y = 15) +
+  # stat_regline_equation(data = spike.length_vs_day.after.leaf6 %>% filter(is.na(FLN.BM)), formula = y ~ poly(x, 3, raw = TRUE), label.x = -1, label.y = 15) +
   geom_smooth(data = . %>% filter(FLN.BM == "NA-7"), 
               method = "lm", formula = y ~ poly(x, 3, raw = TRUE)) +
   stat_regline_equation(data = . %>% filter(FLN.BM == "NA-7"), 
@@ -429,11 +583,11 @@ spike_length_vs_day_after_leaf6 |>
   scale_y_continuous(breaks = seq(0, 17, by = 3)) +
   labs_pubr()
 ggplotly()
-ggsave("plots/spike_length/spike_length_vs_day_after_leaf6.png", width = 12, height = 8)
+ggsave("plots/spike_length/spike.length_vs_day.after.leaf6.png", width = 12, height = 8)
 
-spike_length_vs_day_after_leaf6 |> 
+spike.length_vs_day.after.leaf6 |> 
   select(plant, day_after_leaf6, spike.length.mm)
-  write_csv("output.csv.files/spike_length_vs_day_after_leaf6.csv")
+  write_csv("output.csv.files/spike.length_vs_day.after.leaf6.csv")
 ###############################################################################
 
 # select leaf stage info of main stem from spike length table to add to leaf stage table
